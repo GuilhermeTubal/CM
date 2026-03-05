@@ -10,7 +10,8 @@ class Task(ft.Column):
     on_delete: Callable[["Task"], None] = field(default=lambda task: None)
 
     def init(self):
-        self.display_task = ft.Checkbox(value = False, label = self.task_name)
+        self.completed = False
+        self.display_task = ft.Checkbox(value = False, label = self.task_name, on_change = self.status_changed)
         self.edit_name = ft.TextField(expand = 1)
         self.display_view = ft.Row(
              alignment = ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -43,7 +44,7 @@ class Task(ft.Column):
 
     def status_changed(self, e):
         self.completed = self.display_task.value
-        self.task_status_change()
+        self.on_status_change()
 
     def edit_clicked(self, e):
         self.edit_name.value = self.display_task.label
@@ -58,7 +59,7 @@ class Task(ft.Column):
         self.update()
     
     def delete_clicked(self, e):
-        self.on_task_deleted(self)
+        self.on_delete(self)
     
 
 
@@ -89,9 +90,19 @@ class TodoApp(ft.Column):
                 ft.Row(
                     controls = [self.new_task, ft.FloatingActionButton(icon = ft.Icons.ADD, on_click=self.add_clicked)],
                 ),
-            self.tasks,
+            ft.Column(
+                spacing = 25,
+                controls = [self.filter_tabs, self.tasks],
+            ),
         ]
     
+    def tabs_changed(self, e):
+        self.update()
+
+    def task_status_change(self):
+        self.update()
+
+
     def add_clicked(self, e):
         task = Task(
             task_name=self.new_task.value,
@@ -107,20 +118,13 @@ class TodoApp(ft.Column):
             self.update()
 
     def before_update(self):
-        status = self.filter.tabs[self.filter.selected_index].text
+        status = self.filter.tabs[self.filter_tabs.selected_index].label
         for task in self.tasks.controls:
             task.visible = (
                 status == "all"
                 or (status == "active" and task.completed == False)
                 or (status == "completed" and task.completed)
             )
-
-    def tabs_changed(self, e):
-        self.update()
-
-    def task_status_change(self, e):
-        self.update()
-
 def main(page: ft.Page):
     page.title = "To-do App"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER

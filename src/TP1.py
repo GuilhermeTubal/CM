@@ -75,7 +75,7 @@ class TodoApp(ft.Column):
             tabs=[
                 ft.Tab(label="Todas"),
                 ft.Tab(label="Ativas"),
-                ft.Tab(label="Completas"),
+                ft.Tab(label="Concluídas"),
             ],
         )
 
@@ -142,12 +142,12 @@ class TodoApp(ft.Column):
             task.visible = (
                 status == "Todas"
                 or (status == "Ativas" and task.completed == False)
-                or (status == "Completas" and task.completed)
+                or (status == "Concluídas" and task.completed)
             )
             if not task.completed:
                 count += 1
         self.tasks_left.value = f"{count} tarefa(s) restante(s)"
-        
+
 def main(page: ft.Page):
     page.title = "Gestor de Tarefas"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER

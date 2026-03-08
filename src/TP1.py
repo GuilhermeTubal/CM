@@ -68,6 +68,7 @@ class TodoApp(ft.Column):
     def init(self):
         self.new_task = ft.TextField(hint_text = "O que precisa fazer?", expand = True)
         self.tasks = ft.Column()
+        self.tasks_left = ft.Text("0 tarefas restantes")
 
         self.filter = ft.TabBar(
             scrollable=False,
@@ -92,10 +93,27 @@ class TodoApp(ft.Column):
                 ),
             ft.Column(
                 spacing = 25,
-                controls = [self.filter_tabs, self.tasks],
-            ),
-        ]
+                controls = [self.filter_tabs, self.tasks, ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, 
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER, 
+                    controls=[
+                        self.tasks_left,
+                        ft.OutlinedButton(
+                            content = ft.Text("Limpar completas"), 
+                            on_click=self.clear_tasks
+                            ),
+                         ],
+                    ),
+                 ],
+             ),
+         ]
     
+
+    def clear_tasks(self, e):
+        for tasks in self.tasks.controls[:]:
+            if tasks.completed:
+                self.tasks.controls.remove(tasks)
+            self.update()
+
     def tabs_changed(self, e):
         self.update()
 
@@ -119,12 +137,17 @@ class TodoApp(ft.Column):
 
     def before_update(self):
         status = self.filter.tabs[self.filter_tabs.selected_index].label
+        count = 0
         for task in self.tasks.controls:
             task.visible = (
                 status == "Todas"
                 or (status == "Ativas" and task.completed == False)
                 or (status == "Completas" and task.completed)
             )
+            if not task.completed:
+                count += 1
+        self.tasks_left.value = f"{count} tarefa(s) restante(s)"
+        
 def main(page: ft.Page):
     page.title = "Gestor de Tarefas"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER

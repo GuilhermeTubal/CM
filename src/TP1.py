@@ -1,17 +1,21 @@
+import duckdb
 from dataclasses import field
 from typing import Callable
-
+import os
 import flet as ft
+
+DB_PATH = "tarefas_data.db"
 
 @ft.control
 class Task(ft.Column):
     task_name: str = ""
+    completed: bool = False
     on_status_change: Callable[[], None] = field(default=lambda: None)
     on_delete: Callable[["Task"], None] = field(default=lambda task: None)
 
     def init(self):
-        self.completed = False
-        self.display_task = ft.Checkbox(value = False, label = self.task_name, on_change = self.status_changed)
+        #self.completed = False
+        self.display_task = ft.Checkbox(value = self.completed, label = self.task_name, on_change = self.status_changed)
         self.edit_name = ft.TextField(expand = 1)
         self.display_view = ft.Row(
              alignment = ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -44,6 +48,8 @@ class Task(ft.Column):
 
     def status_changed(self, e):
         self.completed = self.display_task.value
+        with duckdb.connect(DB_PATH) as db:
+            db.execute("Update tasks Set completed = ? Where name = ?", [self.completed, self.task_name])
         self.on_status_change()
 
     def edit_clicked(self, e):
@@ -53,12 +59,19 @@ class Task(ft.Column):
         self.update()
 
     def save_clicked(self, e):
+        old_name = self.display_task.label
+        new_name = self.edit_name.value
+        with duckdb.connect(DB_PATH) as db:
+            db.execute("Update tasks Set name = ? Where name = ?", [new_name, old_name])
+
         self.display_task.label = self.edit_name.value
         self.display_view.visible = True
         self.edit_view.visible = False  
         self.update()
     
     def delete_clicked(self, e):
+        with duckdb.connect(DB_PATH) as db:
+            db.execute("Delete from tasks Where name = ?", [self.task_name])
         self.on_delete(self)
     
 
@@ -69,6 +82,8 @@ class TodoApp(ft.Column):
         self.new_task = ft.TextField(hint_text = "O que precisa fazer?", expand = True)
         self.tasks = ft.Column()
         self.tasks_left = ft.Text("0 tarefas restantes")
+
+        self.init_db()
 
         self.filter = ft.TabBar(
             scrollable=False,
@@ -106,9 +121,27 @@ class TodoApp(ft.Column):
                  ],
              ),
          ]
-    
+       
+
+    def did_mount(self):
+        self.load_tasks()
+
+    def init_db(self):
+        with duckdb.connect(DB_PATH) as db:
+            db.execute("Create Table If Not Exists tasks(name Text, completed Boolean)")
+
+    def load_tasks(self):
+        with duckdb.connect(DB_PATH) as db:
+            rows = db.execute("Select name, completed From tasks").fetchall()
+        for row in rows:
+            task = Task(task_name = row[0], completed = row[1], on_status_change = self.task_status_change, on_delete = self.task_delete)
+            self.tasks.controls.append(task)
+        self.update()
 
     def clear_tasks(self, e):
+        with duckdb.connect(DB_PATH) as db:
+            db.execute("Delete From tasks Where completed = True")
+
         for tasks in self.tasks.controls[:]:
             if tasks.completed:
                 self.tasks.controls.remove(tasks)
@@ -122,6 +155,11 @@ class TodoApp(ft.Column):
 
 
     def add_clicked(self, e):
+        if self.new_task.value == "": return
+
+        with duckdb.connect(DB_PATH) as db:
+            db.execute("INSERT INTO tasks (name, completed) VALUES (?, ?)", [self.new_task.value, False])
+
         task = Task(
             task_name=self.new_task.value,
             on_status_change=self.task_status_change,
@@ -151,7 +189,6 @@ class TodoApp(ft.Column):
 def main(page: ft.Page):
     page.title = "Gestor de Tarefas"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.update()
     
     todo = TodoApp()
 

@@ -21,8 +21,8 @@ class Task(ft.Column):
                  ft.Row(
                      spacing = 0,
                      controls = [
-                        ft.IconButton(icon = ft.Icons.CREATE_OUTLINED, tooltip = "Edit To-do", on_click = self.edit_clicked),
-                        ft.IconButton(icon = ft.Icons.DELETE_OUTLINE, tooltip = "Delete To-do", on_click = self.delete_clicked),
+                        ft.IconButton(icon = ft.Icons.CREATE_OUTLINED, tooltip = "Editar", on_click = self.edit_clicked),
+                        ft.IconButton(icon = ft.Icons.DELETE_OUTLINE, tooltip = "Deletar", on_click = self.delete_clicked),
                      ],
                  ),
                 ],
@@ -35,7 +35,7 @@ class Task(ft.Column):
             vertical_alignment = ft.CrossAxisAlignment.CENTER,
             controls = [
                  self.edit_name,
-                 ft.IconButton(icon = ft.Icons.DONE_OUTLINE_OUTLINED, icon_color = ft.Colors.GREEN, tooltip = "Update To-do", on_click = self.save_clicked),
+                 ft.IconButton(icon = ft.Icons.DONE_OUTLINE_OUTLINED, icon_color = ft.Colors.GREEN, tooltip = "Atualizar", on_click = self.save_clicked),
             ],
 
         )
@@ -66,15 +66,15 @@ class Task(ft.Column):
 @ft.control
 class TodoApp(ft.Column):
     def init(self):
-        self.new_task = ft.TextField(hint_text = "Whats needs to be done??", expand = True)
+        self.new_task = ft.TextField(hint_text = "O que precisa fazer?", expand = True)
         self.tasks = ft.Column()
 
         self.filter = ft.TabBar(
             scrollable=False,
             tabs=[
-                ft.Tab(label="all"),
-                ft.Tab(label="active"),
-                ft.Tab(label="completed"),
+                ft.Tab(label="Todas"),
+                ft.Tab(label="Ativas"),
+                ft.Tab(label="Completas"),
             ],
         )
 
@@ -121,12 +121,12 @@ class TodoApp(ft.Column):
         status = self.filter.tabs[self.filter_tabs.selected_index].label
         for task in self.tasks.controls:
             task.visible = (
-                status == "all"
-                or (status == "active" and task.completed == False)
-                or (status == "completed" and task.completed)
+                status == "Todas"
+                or (status == "Ativas" and task.completed == False)
+                or (status == "Completas" and task.completed)
             )
 def main(page: ft.Page):
-    page.title = "To-do App"
+    page.title = "Gestor de Tarefas"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.update()
     

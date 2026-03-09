@@ -14,7 +14,6 @@ class Task(ft.Column):
     on_delete: Callable[["Task"], None] = field(default=lambda task: None)
 
     def init(self):
-        #self.completed = False
         self.display_task = ft.Checkbox(value = self.completed, label = self.task_name, on_change = self.status_changed)
         self.edit_name = ft.TextField(expand = 1)
         self.display_view = ft.Row(
@@ -194,4 +193,4 @@ def main(page: ft.Page):
 
     page.add(todo)
 
-ft.run(main)
+ft.app(target=main, view=ft.WEB_BROWSER, host="0.0.0.0", port=8080)

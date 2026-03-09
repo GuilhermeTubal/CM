@@ -191,6 +191,7 @@ def main(page: ft.Page):
     
     todo = TodoApp()
 
-    page.add(todo)
+    page.add(todo)  
 
-ft.app(target=main, view=ft.WEB_BROWSER, host="0.0.0.0", port=8080)
+if __name__ == "__main__":
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER)

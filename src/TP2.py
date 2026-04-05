@@ -33,12 +33,12 @@ class ChatMessage(ft.Column):
         self.reactions: dict[str, int] = {}
 
         avatar = ft.CircleAvatar(
-            content=ft.Text(self.message.user_name[:1].upper()),
-            bgcolor=ft.Colors.BLUE,
+            content=ft.Text(self.message.user_name[:1].upper()) if self.message.user_name else None,
+            bgcolor=ft.Colors.BLUE if self.message.user_name else ft.Colors.GREY_400,
             color=ft.Colors.WHITE,
         )
 
-        header = ft.Text(self.message.user_name, weight=ft.FontWeight.BOLD)
+        header = ft.Text(self.message.user_name, weight=ft.FontWeight.BOLD) if self.message.user_name else ft.Text("")
 
         if self.message.message_type == "private_message":
             content = ft.Text(f"[Privado] {self.message.text}", color=ft.Colors.PINK)
@@ -46,7 +46,7 @@ class ChatMessage(ft.Column):
             content = ft.Text(self.message.text)
 
         actions = ft.Row(spacing=5)
-        if self.message.user_name == self.current_user:
+        if self.message.user_name == self.current_user and self.message.message_type in ("chat_message", "private_message"):
             actions.controls.append(
                 ft.IconButton(icon=ft.Icons.EDIT, icon_size=16, on_click=lambda _: self.on_edit(self.message))
             )
@@ -100,8 +100,15 @@ def main(page: ft.Page):
     user_name = None
     room = "general"
 
-    chat = ft.ListView(expand=True, spacing=10, auto_scroll=True)
+    # Salas fixas
+    rooms = ["general", "gaming", "programação"]
 
+    chat = ft.ListView(expand=True, spacing=10, auto_scroll=True)
+    current_room_text = ft.Text(f"Sala atual: {room}", weight=ft.FontWeight.BOLD)
+
+    # -----------------------------------------------------
+    #   Funções auxiliares
+    # -----------------------------------------------------
     def find_message_control(msg_id):
         for c in chat.controls:
             if isinstance(c, ChatMessage) and c.message.id == msg_id:
@@ -157,16 +164,44 @@ def main(page: ft.Page):
         )
 
     # -----------------------------------------------------
+    #   TROCAR DE SALA (BOTÕES)
+    # -----------------------------------------------------
+    def change_room(new_room: str):
+        nonlocal room
+        room = new_room
+        current_room_text.value = f"Sala atual: {room}"
+        chat.controls.clear()
+
+        if user_name:
+            page.pubsub.send_all(
+                Message(
+                    user_name="",
+                    text=f"{user_name} entrou na sala {room}.",
+                    message_type="login_message",
+                    room=room,
+                )
+            )
+
+        page.update()
+
+    botoes_salas = ft.Row(
+        [
+            ft.TextButton("General", on_click=lambda e: change_room("general")),
+            ft.TextButton("Gaming", on_click=lambda e: change_room("gaming")),
+            ft.TextButton("Programação", on_click=lambda e: change_room("programação")),
+        ],
+        spacing=10
+    )
+
+    # -----------------------------------------------------
     #   RECEBER MENSAGENS
     # -----------------------------------------------------
     def on_message(msg: Message):
         nonlocal user_name, room
 
-        # Filtrar por sala
         if msg.room != room and msg.message_type != "login_message":
             return
 
-        # Mensagens privadas — só mostrar ao destinatário ou ao remetente
         if msg.message_type == "private_message":
             if msg.to_user != user_name and msg.user_name != user_name:
                 return
@@ -204,7 +239,7 @@ def main(page: ft.Page):
     # -----------------------------------------------------
     name_field = ft.TextField(label="Nome")
     room_field = ft.Dropdown(
-        label="Sala",
+        label="Sala inicial",
         options=[ft.dropdown.Option("general"), ft.dropdown.Option("gaming"), ft.dropdown.Option("programação")],
         value="general",
     )
@@ -219,12 +254,13 @@ def main(page: ft.Page):
 
         user_name = name_field.value
         room = room_field.value
+        current_room_text.value = f"Sala atual: {room}"
 
         dialog.open = False
 
         page.pubsub.send_all(
             Message(
-                user_name=user_name,
+                user_name="",
                 text=f"{user_name} entrou na sala {room}.",
                 message_type="login_message",
                 room=room,
@@ -275,7 +311,12 @@ def main(page: ft.Page):
         on_submit=send_message,
     )
 
+    # -----------------------------------------------------
+    #   LAYOUT FINAL
+    # -----------------------------------------------------
     page.add(
+        current_room_text,
+        botoes_salas,
         ft.Container(chat, expand=True, border=ft.Border.all(1), padding=10),
         ft.Row([msg_field, ft.IconButton(icon=ft.Icons.SEND, on_click=send_message)]),
         private_to,

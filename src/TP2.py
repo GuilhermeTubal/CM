@@ -23,27 +23,31 @@ class Message:
 # ---------------------------------------------------------
 @ft.control
 class ChatMessage(ft.Column):
-    def __init__(self, message: Message, current_user: str, on_edit, on_delete, on_react):
+    def __init__(self, message: Message, current_user: str, dark_mode: bool, on_edit, on_delete, on_react):
         super().__init__()
         self.message = message
         self.current_user = current_user
+        self.dark_mode = dark_mode
         self.on_edit = on_edit
         self.on_delete = on_delete
         self.on_react = on_react
         self.reactions: dict[str, int] = {}
 
+        bg = ft.Colors.BLUE_GREY_900 if dark_mode else ft.Colors.BLUE
+        txt = ft.Colors.WHITE if dark_mode else ft.Colors.WHITE
+
         avatar = ft.CircleAvatar(
             content=ft.Text(self.message.user_name[:1].upper()) if self.message.user_name else None,
-            bgcolor=ft.Colors.BLUE if self.message.user_name else ft.Colors.GREY_400,
-            color=ft.Colors.WHITE,
+            bgcolor=bg,
+            color=txt,
         )
 
-        header = ft.Text(self.message.user_name, weight=ft.FontWeight.BOLD) if self.message.user_name else ft.Text("")
+        header = ft.Text(self.message.user_name, weight=ft.FontWeight.BOLD, color=txt) if self.message.user_name else ft.Text("")
 
         if self.message.message_type == "private_message":
             content = ft.Text(f"[Privado] {self.message.text}", color=ft.Colors.PINK)
         else:
-            content = ft.Text(self.message.text)
+            content = ft.Text(self.message.text, color=txt)
 
         actions = ft.Row(spacing=5)
         if self.message.user_name == self.current_user and self.message.message_type in ("chat_message", "private_message"):
@@ -83,7 +87,7 @@ class ChatMessage(ft.Column):
         self.reactions_row.controls = [
             ft.Container(
                 content=ft.Text(f"{emoji} {count}"),
-                bgcolor=ft.Colors.GREY_200,
+                bgcolor=ft.Colors.GREY_800,
                 padding=5,
                 border_radius=5,
             )
@@ -95,16 +99,28 @@ class ChatMessage(ft.Column):
 #   APLICAÇÃO PRINCIPAL
 # ---------------------------------------------------------
 def main(page: ft.Page):
-    page.title = "Flet Chat Avançado"
+    page.title = "Chat Avançado com Tema Escuro e Utilizadores Online"
 
     user_name = None
     room = "general"
+    dark_mode = False
 
-    # Salas fixas
     rooms = ["general", "gaming", "programação"]
 
     chat = ft.ListView(expand=True, spacing=10, auto_scroll=True)
     current_room_text = ft.Text(f"Sala atual: {room}", weight=ft.FontWeight.BOLD)
+
+    # Lista de utilizadores online por sala
+    online_users = {r: [] for r in rooms}
+    users_column = ft.Column()
+
+    def update_users_ui():
+        users_column.controls = [
+            ft.Text("Utilizadores online:", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE if dark_mode else ft.Colors.BLACK)
+        ]
+        for u in online_users[room]:
+            users_column.controls.append(ft.Text(f"• {u}", color=ft.Colors.WHITE if dark_mode else ft.Colors.BLACK))
+        page.update()
 
     # -----------------------------------------------------
     #   Funções auxiliares
@@ -164,7 +180,7 @@ def main(page: ft.Page):
         )
 
     # -----------------------------------------------------
-    #   TROCAR DE SALA (BOTÕES)
+    #   TROCAR DE SALA
     # -----------------------------------------------------
     def change_room(new_room: str):
         nonlocal room
@@ -172,16 +188,27 @@ def main(page: ft.Page):
         current_room_text.value = f"Sala atual: {room}"
         chat.controls.clear()
 
-        if user_name:
-            page.pubsub.send_all(
-                Message(
-                    user_name="",
-                    text=f"{user_name} entrou na sala {room}.",
-                    message_type="login_message",
-                    room=room,
-                )
+        # Atualizar lista de utilizadores
+        page.pubsub.send_all(
+            Message(
+                user_name=user_name,
+                text="",
+                message_type="user_status",
+                room=room,
             )
+        )
 
+        # Mensagem de entrada
+        page.pubsub.send_all(
+            Message(
+                user_name="",
+                text=f"{user_name} entrou na sala {room}.",
+                message_type="login_message",
+                room=room,
+            )
+        )
+
+        update_users_ui()
         page.update()
 
     botoes_salas = ft.Row(
@@ -194,10 +221,33 @@ def main(page: ft.Page):
     )
 
     # -----------------------------------------------------
+    #   TEMA ESCURO
+    # -----------------------------------------------------
+    def toggle_theme(e):
+        nonlocal dark_mode
+        dark_mode = not dark_mode
+
+        page.theme_mode = ft.ThemeMode.DARK if dark_mode else ft.ThemeMode.LIGHT
+
+        update_users_ui()
+        page.update()
+
+    botao_tema = ft.TextButton("Alternar tema", on_click=toggle_theme)
+
+    # -----------------------------------------------------
     #   RECEBER MENSAGENS
     # -----------------------------------------------------
     def on_message(msg: Message):
         nonlocal user_name, room
+
+        # Atualizar utilizadores online
+        if msg.message_type == "user_status":
+            for r in rooms:
+                if msg.user_name in online_users[r]:
+                    online_users[r].remove(msg.user_name)
+            online_users[msg.room].append(msg.user_name)
+            update_users_ui()
+            return
 
         if msg.room != room and msg.message_type != "login_message":
             return
@@ -208,11 +258,11 @@ def main(page: ft.Page):
 
         if msg.message_type in ("chat_message", "private_message"):
             chat.controls.append(
-                ChatMessage(msg, user_name, handle_edit, handle_delete, handle_react)
+                ChatMessage(msg, user_name, dark_mode, handle_edit, handle_delete, handle_react)
             )
 
         elif msg.message_type == "login_message":
-            chat.controls.append(ft.Text(msg.text, italic=True))
+            chat.controls.append(ft.Text(msg.text, italic=True, color=ft.Colors.WHITE if dark_mode else ft.Colors.BLACK))
 
         elif msg.message_type == "edit_message":
             target = find_message_control(msg.target_id)
@@ -240,7 +290,7 @@ def main(page: ft.Page):
     name_field = ft.TextField(label="Nome")
     room_field = ft.Dropdown(
         label="Sala inicial",
-        options=[ft.dropdown.Option("general"), ft.dropdown.Option("gaming"), ft.dropdown.Option("programação")],
+        options=[ft.dropdown.Option(r) for r in rooms],
         value="general",
     )
 
@@ -258,6 +308,17 @@ def main(page: ft.Page):
 
         dialog.open = False
 
+        # Atualizar utilizadores online
+        page.pubsub.send_all(
+            Message(
+                user_name=user_name,
+                text="",
+                message_type="user_status",
+                room=room,
+            )
+        )
+
+        # Mensagem de entrada
         page.pubsub.send_all(
             Message(
                 user_name="",
@@ -266,6 +327,8 @@ def main(page: ft.Page):
                 room=room,
             )
         )
+
+        update_users_ui()
         page.update()
 
     dialog = ft.AlertDialog(
@@ -315,9 +378,15 @@ def main(page: ft.Page):
     #   LAYOUT FINAL
     # -----------------------------------------------------
     page.add(
-        current_room_text,
+        ft.Row([current_room_text, botao_tema]),
         botoes_salas,
-        ft.Container(chat, expand=True, border=ft.Border.all(1), padding=10),
+        ft.Row(
+            [
+                ft.Container(users_column, width=200, padding=10),
+                ft.Container(chat, expand=True, border=ft.Border.all(1), padding=10),
+            ],
+            expand=True
+        ),
         ft.Row([msg_field, ft.IconButton(icon=ft.Icons.SEND, on_click=send_message)]),
         private_to,
     )

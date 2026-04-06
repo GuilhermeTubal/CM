@@ -12,7 +12,7 @@ class Message:
     user_name: str = ""
     text: str = ""
     message_type: str = "chat_message"  
-    room: str = "general"
+    room: str = "geral"
     to_user: str | None = None
     target_id: str | None = None
     reaction_emoji: str | None = None
@@ -34,7 +34,7 @@ class ChatMessage(ft.Column):
         self.reactions: dict[str, int] = {}
 
         bg = ft.Colors.BLUE_GREY_900 if dark_mode else ft.Colors.BLUE
-        txt = ft.Colors.WHITE if dark_mode else ft.Colors.WHITE
+        txt = ft.Colors.WHITE if dark_mode else ft.Colors.BLACK
 
         avatar = ft.CircleAvatar(
             content=ft.Text(self.message.user_name[:1].upper()) if self.message.user_name else None,
@@ -99,13 +99,13 @@ class ChatMessage(ft.Column):
 #   APLICAÇÃO PRINCIPAL
 # ---------------------------------------------------------
 def main(page: ft.Page):
-    page.title = "Chat Avançado com Tema Escuro e Utilizadores Online"
+    page.title = "Chat"
 
     user_name = None
-    room = "general"
+    room = "geral"
     dark_mode = False
 
-    rooms = ["general", "gaming", "programação"]
+    rooms = ["geral", "estudos", "programação"]
 
     chat = ft.ListView(expand=True, spacing=10, auto_scroll=True)
     current_room_text = ft.Text(f"Sala atual: {room}", weight=ft.FontWeight.BOLD)
@@ -213,8 +213,8 @@ def main(page: ft.Page):
 
     botoes_salas = ft.Row(
         [
-            ft.TextButton("General", on_click=lambda e: change_room("general")),
-            ft.TextButton("Gaming", on_click=lambda e: change_room("gaming")),
+            ft.TextButton("Geral", on_click=lambda e: change_room("geral")),
+            ft.TextButton("Estudos", on_click=lambda e: change_room("estudos")),
             ft.TextButton("Programação", on_click=lambda e: change_room("programação")),
         ],
         spacing=10
